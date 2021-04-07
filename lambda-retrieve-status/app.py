@@ -1,6 +1,11 @@
+import logging
+import os
 import re
 import time
 import boto3
+
+logger = logging.getLogger(__name__)
+logger.setLevel(os.getenv('LOG_LEVEL', 'WARNING'))
 
 dynamodb = boto3.client('dynamodb')
 
@@ -8,13 +13,14 @@ regexp_export_arn = re.compile(r'arn:aws:dynamodb:[\w\d-]+:\d{12}:table/.+/expor
 
 def lambda_handler(event, context):
 
-    print(event)
+    logger.debug('event:')
+    logger.debug(event)
 
     try:
         response = dynamodb.describe_export(
             ExportArn=event['ExportArn']
         )
-        print(response)
+        logger.info(response)
     except Exception as e:
         raise(e)
     else:
@@ -31,6 +37,7 @@ def lambda_handler(event, context):
         }
 
     if 'FailureCode' in response['ExportDescription']:
+        logger.error(response)
         if response['ExportDescription']['FailureCode'] == 'S3AccessDenied':
             statusCode = 403
     else:

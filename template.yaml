@@ -46,6 +46,10 @@ Parameters:
     Description: Please type the fields for query.
     Type: String
     Default: Item.pk.S as pk, Item.field0.S as field0, Item.field1.N as field1
+  LogLevel:
+    Description: Please type the log level for lambda (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    Type: String
+    Default: WARNING
 
 Conditions:
   HasExportS3Prefix: !Not [!Equals [ !Ref ExportS3Prefix, "" ]]
@@ -59,13 +63,14 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: lambda-export-ddb/
-      FunctionName: ddb2csv-export-ddb
+      FunctionName: !Sub "${AWS::StackName}-ddb2csv-export-ddb"
       Handler: app.lambda_handler
       MemorySize: 128
       Role: !GetAtt ExportFunctionRole.Arn
       Runtime: python3.8
       Environment:
         Variables:
+          LOG_LEVEL: !Sub "${LogLevel}"
           TABLE_ARN: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}"
           S3_BUCKET: !Sub "${ExportS3Bucket}"
           S3_PREFIX: !Sub "${ExportS3Prefix}"
@@ -77,14 +82,14 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: lambda-retrieve-status/
-      FunctionName: ddb2csv-retrieve-status
+      FunctionName: !Sub "${AWS::StackName}-ddb2csv-retrieve-status"
       Handler: app.lambda_handler
       MemorySize: 128
       Role: !GetAtt RetrieveStatusFunctionRole.Arn
       Runtime: python3.8
       Environment:
         Variables:
-          TABLE_ARN: ""
+          LOG_LEVEL: !Sub "${LogLevel}"
 
   #
   # Role for export ddb
@@ -92,7 +97,7 @@ Resources:
   ExportFunctionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ddb2csv-ExportDDBRole
+      RoleName: !Sub "${AWS::StackName}-ddb2csv-ExportDDBRole"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -130,7 +135,7 @@ Resources:
   RetrieveStatusFunctionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ddb2csv-RetrieveStatusRole
+      RoleName: !Sub "${AWS::StackName}-ddb2csv-RetrieveStatusRole"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -162,7 +167,7 @@ Resources:
   StateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      Name: ddb2csvStateMachine
+      Name: !Sub "${AWS::StackName}-ddb2csvStateMachine"
       DefinitionUri: statemachine/ddb2csv.asl.json
       DefinitionSubstitutions:
         ExportFunction: !GetAtt ExportFunction.Arn
@@ -193,7 +198,7 @@ Resources:
   StateMachineRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ddb2csv-StateMachineRole
+      RoleName: !Sub "${AWS::StackName}-ddb2csv-StateMachineRole"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -287,7 +292,7 @@ Resources:
   StateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName : '/aws/state/ddb2csv'
+      LogGroupName : !Sub "/aws/state/ddb2csv-${AWS::StackName}-"
 
 Outputs:
   ExportFunctionArn:
@@ -302,3 +307,6 @@ Outputs:
   OutputCsvS3Location:
     Description: 'Location of output csv file'
     Value: !If [ HasOutputCsvS3Prefix, !Sub "${OutputCsvS3Bucket}/${OutputCsvS3Prefix}", !Sub "${OutputCsvS3Bucket}" ]
+  LogLevel:
+    Description: 'Log Level for Lambda'
+    Value: !Sub "${LogLevel}"

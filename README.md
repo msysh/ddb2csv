@@ -1,6 +1,19 @@
 # ddb2csv
 
-Amazon DynamoDB table to CSV using DynamoDB Export feature.
+Extract CSV from Amazon DynamoDB table with "Exporting DynamoDB table data to Amazon S3".
+
+This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+
+- lambda-export-ddb - Code for Lambda function that is to export DynamoDB JSON from DynamoDB table using PITR (Point in Time Recovery).
+- lambda-retrieve-status - Code for Lambda function that is to retrieve exporting status.
+- statemachine - Code for Step Functions DSL (Amazon States Language).
+- template.yaml - A template that defines the application's AWS resources.
+
+## Pre-Requriement
+
+1. To enable "Point In Time Recovery" on your target DynamoDB table.
+2. S3 buckets for 2 purposes what to export JSON and to output CSV. You can use the same bucket for both.
+3. Athena database.
 
 ## Deploy the application
 
@@ -19,10 +32,29 @@ sam build --use-container
 sam deploy --guided
 ```
 
+The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
+
+* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
+* **AWS Region**: The AWS region you want to deploy your app to.
+* Parameter
+  * **DynamoDBTableName**: Export target DynamoDB table name. (default: `table-name`)
+  * **DynamoDBSchema**: DynamoDB JSON schema for `CREATE TABLE` by Athena. (default: pk:struct<S:string>,field0:struct<S:string>,field1:struct<N:string>)
+  * **ExportS3Bucket**: S3 bucket name for exported JSON file from DynamoDB. (default: `your-bucket`)
+  * **ExportS3Prefix**: S3 prefix for exported JSON file from DynamoDB. (default: `dynamodb/export`)
+  * **OutputCsvS3Bucket**: S3 bucket name for query result output by Athena. (default: `your-bucket`)
+  * **OutputCsvS3Prefix**: S3 prefix for query result output by Athena. (defualt: `ddb2csv`)
+  * **AthenaDatabase**: Athena database name. (default: `default`)
+  * **AthenaTemporaryTable**: Athena temporary table name to execute query. This table is droped when process is complete. (default: `ddb2csb_exported`)
+  * **AthenaQueryFields**: Query fields used by Athena `SELECT` query. (default: `Item.pk.S as pk, Item.field0.S as field0, Item.field1.N as field1`)
+  * **LogLevel**: Log level for Python Lambda (DEBUG, INFO, WARNING, ERROR, CRITICAL) (default: WARNING)
+* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
+* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modified IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
+* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
+
 ## Cleanup
 
 To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
 
 ```bash
-aws cloudformation delete-stack --stack-name ddb2csv
+aws cloudformation delete-stack --stack-name ${STACK_NAME}
 ```

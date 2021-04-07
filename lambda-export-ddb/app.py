@@ -1,7 +1,11 @@
+import logging
 import os
 import re
 import time
 import boto3
+
+logger = logging.getLogger(__name__)
+logger.setLevel(os.getenv('LOG_LEVEL', 'WARNING'))
 
 table_arn = os.environ.get('TABLE_ARN')
 s3_bucket = os.environ.get('S3_BUCKET')
@@ -13,7 +17,8 @@ regexp_export_arn = re.compile(r'arn:aws:dynamodb:[\w\d-]+:\d{12}:table/.+/expor
 
 def lambda_handler(event, context):
 
-    print(event)
+    logger.debug('event:')
+    logger.debug(event)
 
     try:
         response = dynamodb.export_table_to_point_in_time(
@@ -24,6 +29,7 @@ def lambda_handler(event, context):
             S3SseAlgorithm='AES256',
             ExportFormat='DYNAMODB_JSON'
         )
+        logger.info(response)
     except Exception as e:
         raise(e)
     else:
