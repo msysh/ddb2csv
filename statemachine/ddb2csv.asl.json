@@ -35,10 +35,10 @@
 				{
 					"Variable": "$.ExportStatus",
 					"StringEquals": "FAILED",
-					"Next": "ExportError"
+					"Next": "Error"
 				}
             ],
-            "Default": "ExportError"
+            "Default": "Error"
         },
         "WaitFor1min": {
             "Type": "Wait",
@@ -54,7 +54,15 @@
                     "OutputLocation": "s3://${OutputCsvS3Location}/ddl"
                 }
             },
-            "Next": "QueryTable"
+            "ResultPath": "$.createResult",
+            "OutputPath": "$",
+            "Next": "QueryTable",
+            "Catch": [
+                {
+                    "ErrorEquals": [ "States.ALL" ],
+                    "Next": "Error"
+                }
+            ]
         },
         "QueryTable": {
             "Type": "Task",
@@ -65,11 +73,13 @@
                     "OutputLocation": "s3://${OutputCsvS3Location}"
                 }
             },
+            "ResultPath": "$.queryResult",
+            "OutputPath": "$",
             "Next": "DropTable",
             "Catch": [
                 {
                     "ErrorEquals": [ "States.ALL" ],
-                    "Next": "DropTable"
+                    "Next": "DropTableFallback"
                 }
             ]
         },
@@ -84,10 +94,21 @@
             },
             "End": true
         },
-        "ExportError": {
+        "DropTableFallback" : {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
+            "Parameters": {
+                "QueryString": "DROP TABLE IF EXISTS ${AthenaDatabase}.${AthenaTemporaryTable}",
+                "ResultConfiguration": {
+                    "OutputLocation": "s3://${OutputCsvS3Location}/ddl"
+                }
+            },
+            "Next": "Error"
+        },
+        "Error": {
             "Type": "Fail",
-            "Cause": "Exporting DynamoDB is failed.",
-            "Error": "Export Errors"
+            "Cause": "Failed.",
+            "Error": "Error"
         }
     }
 }
